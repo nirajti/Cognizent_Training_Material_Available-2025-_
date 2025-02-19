@@ -1,0 +1,362 @@
+***********************  HANDS-ON  *************************
+
+Area of a Circle
+
+
+set serveroutput on;
+    
+    DECLARE
+      area number(7,2);
+      c number(5);
+    BEGIN
+      for c in 3 .. 7
+      loop
+        area := 3.14 * c * c;
+        insert into circle values ( c, area);
+      end loop;
+      
+    END;
+    /
+    
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Display department names using Cursors
+
+
+
+set serveroutput on;
+declare
+cursor c_dept is select department_name
+from department order by department_name;
+v_dept c_dept%rowtype;
+begin
+open c_dept;
+dbms_output.put_line('Department Names are :');
+loop
+fetch c_dept into v_dept;
+exit when c_dept%notfound;
+dbms_output.put_line(upper(v_dept.department_name));
+end loop;
+close c_dept;
+end;
+
+
+------------------------------------------------------------------------------------------------------------------------------------------
+
+Insert a Record - Triggers
+
+
+
+create or replace 
+TRIGGER display_message AFTER INSERT OR UPDATE ON employee 
+BEGIN 
+dbms_output.put_line('NEW EMPLOYEE DETAILS INSERTED');
+END;
+
+
+---------------------------------------------------------------------------------------------------------------------------------
+
+Insert credit - Procedure
+
+
+
+ create or replace PROCEDURE insert_credit(credit_id number,credit_card_number varchar,credit_card_expire varchar,holder_name varchar,card_type varchar)
+     IS
+     BEGIN
+     insert into credit_card values (credit_id,credit_card_number,credit_card_expire,holder_name,card_type);
+     	END;
+     /
+
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+Insert Record using Anonymous Block
+
+
+
+  DECLARE
+     n_ID NUMBER;
+     BEGIN
+       SELECT MAX(DEPARTMENT_ID)+10 INTO n_ID FROM DEPARTMENT;
+       INSERT INTO DEPARTMENT VALUES(n_ID,'TESTING','CHN-102');
+     END;
+     /
+
+
+--------------------------------------------------------------------------------------------------------------------------------------
+
+Package with a Procedure to update salary
+
+
+create or replace package
+EMP_DESIGNATION
+as procedure emp_details(design employee.designation%type,incentive number);
+end emp_designation;
+/
+create or replace package body 
+emp_designation
+as
+procedure emp_details(design employee.designation%type,incentive number)
+is
+begin
+update employee
+set employee.salary = employee.salary + incentive
+where employee.designation = design;
+dbms_output.put_line(
+sql%rowcount ||'employee(s) are updated.');
+END emp_details;
+END emp_designation;
+/
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------------
+
+Procedure with Exception Handling
+
+
+
+create or replace PROCEDURE CHECK_AGE_ELIGIBILITY(
+    v_id IN EMPLOYEE.EMPID%TYPE,
+    v_name IN EMPLOYEE.EMPNAME%TYPE, 
+    v_age IN EMPLOYEE.AGE%TYPE) as
+
+not_of_age exception;
+
+    begin
+        if v_age>=18 then
+            insert into EMPLOYEE(empid,empname,age) values(v_age,v_name,v_age);
+            dbms_output.put_line('Age valid - Record inserted');
+        else
+            raise not_of_age;
+
+        end if;
+    exception
+        when not_of_age then
+        dbms_output.put_line('Age invalid - Record not inserted');
+end;
+/
+
+
+
+
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Select city - Procedure
+
+
+
+
+create or replace procedure select_city
+(user_id in number,city_details out varchar2)as
+begin
+ select case
+when city = 'Bangalore' then
+ 'User is from Bangalore'
+when city = 'Chennai' then
+ 'User is from Chennai'
+else
+ 'User is from other cities'
+end tmp_status
+into city_details
+from contact cnt
+where cnt.id = user_id;
+end;
+/
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+Update Location
+
+
+
+
+         UPDATE DEPARTMENT SET LOCATION_ID='HQ-BLR-101' WHERE LOCATION_ID LIKE 'HQ%';
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+***********************  CC  *************************
+
+
+Concatenate Employee names - Functions
+
+
+
+CREATE OR REPLACE FUNCTION CONCAT_NAME(v_id employee.emp_id%type)
+return varchar2
+is
+     return_val varchar2(25);
+     
+BEGIN
+    select (FIRST_NAME || LAST_NAME ) into return_val from EMPLOYEE 
+    where EMP_ID=V_id;
+    
+    return return_val;
+    end;
+    /
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+
+
+Copy Records
+
+
+
+set serveroutput on;
+DECLARE
+v_count number(5) :=0;
+BEGIN
+insert into DEPARTMENT_CBE SELECT*FROM DEPARTMENT where LOCATION_ID LIKE'CBE%';
+IF SQL%NOTFOUND then
+DBMS_OUTPUT.PUT_LINE('No Records found.');
+ELSIF SQL%FOUND THEN
+v_count:=sql%ROWCOUNT;
+DBMS_OUTPUT.PUT_LINE(v_count||'Record(s) got copied.');
+END IF;
+END;
+/
+
+
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------
+
+Count the number of  Records
+
+
+
+set serverout on;
+declare 
+tot_rec number;
+begin
+update employee set salary=(salary*0.15)+salary where dept='MECH';
+tot_rec:=sql%rowcount;
+if sql%found 
+then
+dbms_output.put_line(tot_rec ||'Employees got increment.');
+else
+dbms_output.put_line('No Records found.');
+end if;
+end;
+/
+
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+Count the number of Locations
+
+
+
+set serveroutput on;
+DECLARE
+ cnt number;
+BEGIN
+ select count(DISTINCT(LOCATION_ID))into cnt FROM DEPARTMENT;
+ DBMS_OUTPUT.PUT_LINE('Number of Locations are:'||cnt);
+END;
+/
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------
+
+Delete a Record - Triggers
+
+
+
+Create or replace trigger del_emp before delete on EMPLOYEE for each row
+begin
+insert into EMPLOYEE_ARCHIVE values(:old.EMPID,:old.EMPNAME,:old.MANAGERID,sysdate);
+end;
+/
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------
+
+Inventory alert
+
+
+
+create or replace trigger t_Inventory after insert or update on stock for each row
+when (new.quantity <= 10)
+begin
+ dbms_output.put_line('Re-order Level reached for the item - '||:new.description);
+end;
+/
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------------------------
+
+Remove Employee records - Procedures
+
+
+
+SET SERVEROUTPUT ON;
+CREATE OR REPLACE PROCEDURE DELETE_EMPLOYEE(
+v_dept IN EMPLOYEE.dept%TYPE)
+IS
+v_count number := 0;
+DeptNotFoundException EXCEPTION;
+BEGIN
+    DELETE FROM EMPLOYEE WHERE DEPT=v_dept;
+    IF SQL%NOTFOUND THEN
+        RAISE DeptNotFoundException;
+    ELSIF SQL%FOUND THEN
+        v_count := SQL%ROWCOUNT;
+        DBMS_OUTPUT.PUT_LINE(v_count || 'Employee record(s) got deleted.');
+    END IF;
+    EXCEPTION
+        WHEN DeptNotFoundException THEN
+            DBMS_OUTPUT.PUT_LINE('No Records found.');
+END DELETE_EMPLOYEE;
+/
+
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+Withdraw Amount - Procedures
+
+
+
+create or replace procedure withdraw(ano number,amt number)
+is
+v_bal number;
+begin
+select balance into v_bal from account where accno=ano;
+if v_bal>amt then
+update account set balance=balance-amt where accno=ano;
+DBMS_OUTPUT.PUT_LINE('Transaction successful.');
+else
+DBMS_OUTPUT.PUT_LINE('Insufficient Amount.');
+end if;
+end;
+/
+
